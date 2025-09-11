@@ -30,3 +30,7 @@ kotlin {
 application {
     mainClass.set("org.example.fileindexdemo.Main")
 }
+
+tasks.named<JavaExec>("run") {
+    standardInput = System.`in`   // <-- lets your REPL read from the terminal
+}
