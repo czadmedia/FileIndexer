@@ -16,11 +16,9 @@ import kotlin.io.path.isRegularFile
  */
 class FileIndexService(
     private val tokenizer: Tokenizer = SimpleWordTokenizer(),
-    threadCount: Int = Runtime.getRuntime().availableProcessors().coerceAtLeast(2)
+    threadCount: Int = Runtime.getRuntime().availableProcessors().coerceAtLeast(2),
+    private val indexStore: InvertedIndexStore = ConcurrentInvertedIndexStore()
 ) : AutoCloseable {
-
-    private val inverted: ConcurrentHashMap<String, MutableSet<Path>> = ConcurrentHashMap()
-    private val fileTokens: ConcurrentHashMap<Path, Set<String>> = ConcurrentHashMap()
 
     private val pool: ExecutorService = Executors.newFixedThreadPool(threadCount)
     private var watchService: WatchService? = null
@@ -57,11 +55,10 @@ class FileIndexService(
         if (input.isBlank()) return emptySet()
 
         val norm = tokenizer.normalizeSingleToken(input)
-        val paths = inverted[norm] ?: return emptySet()
-        return paths.toSet()
+        return indexStore.query(norm)
     }
 
-    fun dumpIndex(): Map<String, Set<Path>> = inverted.mapValues { (_, paths) -> paths.toSet() }
+    fun dumpIndex(): Map<String, Set<Path>> = indexStore.dumpIndex()
 
     override fun close() {
         watcherRunning.set(false)
@@ -89,33 +86,13 @@ class FileIndexService(
         }
         val text = Files.newBufferedReader(path).use { it.readText() }
         val newTokens = tokenizer.tokens(text).toSet()
-        val oldTokens = fileTokens.put(path, newTokens)
+        val oldTokens = indexStore.getFileTokens(path)
 
-        if (oldTokens != null) for (token in oldTokens - newTokens) {
-            inverted[token]?.let { paths ->
-                paths.remove(path)
-                if (paths.isEmpty()) inverted.remove(token, paths)
-            }
-        }
-
-        for (token in newTokens - (oldTokens ?: emptySet()).toSet()) {
-            val paths = inverted.computeIfAbsent(token) { ConcurrentHashMap.newKeySet() }
-            paths.add(path)
-        }
+        indexStore.updateFileTokens(path, newTokens, oldTokens)
     }
 
     private fun removeFile(path: Path) {
-        val tokens = fileTokens.remove(path) ?: return
-        for (token in tokens) {
-            inverted[token]?.let { paths ->
-                paths.remove(path)
-
-                if (paths.isEmpty()) inverted.remove(
-                    token,
-                    paths
-                )
-            }
-        }
+        indexStore.removeFile(path)
     }
 
     private fun walk(path: Path): Sequence<Path> = sequence {
