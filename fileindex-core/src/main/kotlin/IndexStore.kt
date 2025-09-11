@@ -7,7 +7,7 @@ import java.util.concurrent.ConcurrentHashMap
  * Thread-safe storage for an inverted index mapping tokens to file paths.
  * Provides atomic operations for maintaining token-to-files relationships.
  */
-interface InvertedIndexStore {
+interface IndexStore {
     /**
      * Update the index when a file's tokens change.
      * Removes old tokens that are no longer in the file and adds new ones.
@@ -44,7 +44,7 @@ interface InvertedIndexStore {
  * Concurrent implementation of InvertedIndexStore using ConcurrentHashMap.
  * This matches the existing behavior of FileIndexService's internal storage.
  */
-class ConcurrentInvertedIndexStore : InvertedIndexStore {
+class ConcurrentIndexStore : IndexStore {
     private val inverted: ConcurrentHashMap<String, MutableSet<Path>> = ConcurrentHashMap()
     private val fileTokens: ConcurrentHashMap<Path, Set<String>> = ConcurrentHashMap()
     

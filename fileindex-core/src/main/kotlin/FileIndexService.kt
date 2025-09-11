@@ -17,7 +17,7 @@ import kotlin.io.path.isRegularFile
 class FileIndexService(
     private val tokenizer: Tokenizer = SimpleWordTokenizer(),
     threadCount: Int = Runtime.getRuntime().availableProcessors().coerceAtLeast(2),
-    private val indexStore: InvertedIndexStore = ConcurrentInvertedIndexStore()
+    private val indexStore: IndexStore = ConcurrentIndexStore()
 ) : AutoCloseable {
 
     private val pool: ExecutorService = Executors.newFixedThreadPool(threadCount)
