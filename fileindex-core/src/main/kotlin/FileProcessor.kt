@@ -1,0 +1,47 @@
+package org.example.fileindexcore
+
+import java.nio.file.Files
+import java.nio.file.Path
+import kotlin.io.path.isRegularFile
+
+/**
+ * Handles reading and tokenizing files for indexing.
+ * Separates file I/O concerns from the main indexing logic.
+ */
+interface FileProcessor {
+    /**
+     * Process a file and return its tokens, or null if the file cannot be processed.
+     * Returns null for files that don't exist, aren't regular files, or have processing errors.
+     */
+    fun processFile(path: Path): Set<String>?
+    
+    /**
+     * Check if a file can be processed (exists and is a regular file).
+     */
+    fun canProcess(path: Path): Boolean
+}
+
+/**
+ * Default implementation that reads text files and tokenizes their content.
+ * Uses the provided tokenizer to extract tokens from file content.
+ */
+class TextFileProcessor(
+    private val tokenizer: Tokenizer
+) : FileProcessor {
+    
+    override fun processFile(path: Path): Set<String>? {
+        if (!canProcess(path)) return null
+        
+        return try {
+            val text = Files.newBufferedReader(path).use { it.readText() }
+            tokenizer.tokens(text).toSet()
+        } catch (_: Throwable) {
+            // Return null for any processing errors (permissions, encoding, I/O issues, etc.)
+            null
+        }
+    }
+    
+    override fun canProcess(path: Path): Boolean {
+        return Files.exists(path) && path.isRegularFile()
+    }
+}

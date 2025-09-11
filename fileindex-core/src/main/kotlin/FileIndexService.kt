@@ -17,7 +17,8 @@ import kotlin.io.path.isRegularFile
 class FileIndexService(
     private val tokenizer: Tokenizer = SimpleWordTokenizer(),
     threadCount: Int = Runtime.getRuntime().availableProcessors().coerceAtLeast(2),
-    private val indexStore: IndexStore = ConcurrentIndexStore()
+    private val indexStore: IndexStore = ConcurrentIndexStore(),
+    private val fileProcessor: FileProcessor = TextFileProcessor(tokenizer)
 ) : AutoCloseable {
 
     private val pool: ExecutorService = Executors.newFixedThreadPool(threadCount)
@@ -71,7 +72,7 @@ class FileIndexService(
     }
 
     private fun scheduleIndex(path: Path) {
-        if (!Files.exists(path) || !path.isRegularFile()) return
+        if (!fileProcessor.canProcess(path)) return
         pool.submit { safeIndex(path) }
     }
 
@@ -81,13 +82,14 @@ class FileIndexService(
     }
 
     private fun indexFile(path: Path) {
-        if (!Files.exists(path) || !path.isRegularFile()) {
-            removeFile(path); return
+        val newTokens = fileProcessor.processFile(path)
+        if (newTokens == null) {
+            // File cannot be processed, remove it from index
+            removeFile(path)
+            return
         }
-        val text = Files.newBufferedReader(path).use { it.readText() }
-        val newTokens = tokenizer.tokens(text).toSet()
-        val oldTokens = indexStore.getFileTokens(path)
 
+        val oldTokens = indexStore.getFileTokens(path)
         indexStore.updateFileTokens(path, newTokens, oldTokens)
     }
 
