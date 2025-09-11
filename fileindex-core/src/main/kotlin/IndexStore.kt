@@ -95,7 +95,12 @@ class ConcurrentIndexStore : IndexStore {
     }
     
     override fun dumpIndex(): Map<String, Set<Path>> {
-        return inverted.mapValues { (_, paths) -> paths.toSet() }
+        // Create a snapshot by copying all entries to avoid concurrent modification
+        val result = mutableMapOf<String, Set<Path>>()
+        for ((token, paths) in inverted) {
+            result[token] = HashSet(paths) // Create defensive copy
+        }
+        return result
     }
     
     override fun clear() {

@@ -7,7 +7,6 @@ import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 import java.util.concurrent.atomic.AtomicBoolean
-import kotlin.io.path.isRegularFile
 
 /**
  * Thread-safe file index with optional filesystem watching. Holds an inverted index
@@ -18,7 +17,8 @@ class FileIndexService(
     private val tokenizer: Tokenizer = SimpleWordTokenizer(),
     threadCount: Int = Runtime.getRuntime().availableProcessors().coerceAtLeast(2),
     private val indexStore: IndexStore = ConcurrentIndexStore(),
-    private val fileProcessor: FileProcessor = TextFileProcessor(tokenizer)
+    private val fileProcessor: FileProcessor = TextFileProcessor(tokenizer),
+    private val pathWalker: PathWalker = RecursivePathWalker()
 ) : AutoCloseable {
 
     private val pool: ExecutorService = Executors.newFixedThreadPool(threadCount)
@@ -31,7 +31,9 @@ class FileIndexService(
     fun index(paths: List<Path>) {
         println("Index roots: " + paths.map { it.toAbsolutePath() })
         paths.forEach { path ->
-            walk(path).forEach { p -> scheduleIndex(p) }
+            for (p in pathWalker.walk(path)) {
+                scheduleIndex(p)
+            }
         }
     }
 
@@ -97,17 +99,6 @@ class FileIndexService(
         indexStore.removeFile(path)
     }
 
-    private fun walk(path: Path): Sequence<Path> = sequence {
-        if (Files.isRegularFile(path)) {
-            yield(path)
-        } else if (Files.isDirectory(path)) {
-            Files.walk(path).use { pathStream ->
-                for (p in pathStream) {
-                    yield(p)
-                }
-            }
-        }
-    }
 
     private fun ensureWatchService() {
         if (watchService == null) watchService = FileSystems.getDefault().newWatchService()
