@@ -39,12 +39,6 @@ class FileIndexService(
 
     fun dumpIndex(): Map<String, Set<Path>> = indexStore.dumpIndex()
 
-    override fun close() {
-        fileSystemWatcher.close()
-        taskExecutor.close()
-    }
-
-
     private fun indexFile(path: Path) {
         val newTokens = fileProcessor.processFile(path)
         if (newTokens == null) {
@@ -82,4 +76,8 @@ class FileIndexService(
         }
     }
 
+    override fun close() {
+        fileSystemWatcher.close()
+        taskExecutor.close()
+    }
 }
