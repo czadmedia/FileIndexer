@@ -43,16 +43,12 @@ class FileIndexService(
         val newTokens = fileProcessor.processFile(path)
         if (newTokens == null) {
             // File cannot be processed, remove it from index
-            removeFile(path)
+            indexStore.removeFile(path)
             return
         }
 
         val oldTokens = indexStore.getFileTokens(path)
         indexStore.updateFileTokens(path, newTokens, oldTokens)
-    }
-
-    private fun removeFile(path: Path) {
-        indexStore.removeFile(path)
     }
 
     private fun handleFileSystemEvent(event: FileSystemEvent) {
@@ -71,7 +67,7 @@ class FileIndexService(
                 taskExecutor.scheduleIndex(event.path, fileProcessor, this::indexFile)
             }
             is FileSystemEvent.Deleted -> {
-                removeFile(event.path)
+                indexStore.removeFile(event.path)
             }
         }
     }
