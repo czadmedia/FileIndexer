@@ -38,13 +38,19 @@ class TextFileProcessor(
         
         return try {
             val tokens = mutableSetOf<String>()
+            val session = tokenizer.createSession()
             
             Files.newBufferedReader(path).use { reader ->
                 reader.forEachLine { line ->
-                    tokenizer.tokens(line).forEach { token ->
+                    session.processText(line).forEach { token ->
                         tokens.add(token)
                     }
                 }
+            }
+            
+            // Finalize to get any remaining tokens
+            session.finalize().forEach { token ->
+                tokens.add(token)
             }
             
             tokens
