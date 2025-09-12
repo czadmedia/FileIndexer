@@ -1,12 +1,6 @@
 package org.example.fileindexcore
 
-import java.io.IOException
 import java.nio.file.*
-import java.nio.file.StandardWatchEventKinds.*
-import java.util.concurrent.ConcurrentHashMap
-import java.util.concurrent.ExecutorService
-import java.util.concurrent.Executors
-import java.util.concurrent.atomic.AtomicBoolean
 
 /**
  * Thread-safe file index with optional filesystem watching. Holds an inverted index
@@ -15,43 +9,25 @@ import java.util.concurrent.atomic.AtomicBoolean
  */
 class FileIndexService(
     private val tokenizer: Tokenizer = SimpleWordTokenizer(),
-    threadCount: Int = Runtime.getRuntime().availableProcessors().coerceAtLeast(2),
     private val indexStore: IndexStore = ConcurrentIndexStore(),
     private val fileProcessor: FileProcessor = TextFileProcessor(tokenizer),
-    private val pathWalker: PathWalker = RecursivePathWalker()
+    private val pathWalker: PathWalker = RecursivePathWalker(),
+    private val fileSystemWatcher: FileSystemWatcher = JavaFileSystemWatcher(),
+    private val taskExecutor: TaskExecutor = ThreadPoolTaskExecutor()
 ) : AutoCloseable {
-
-    private val pool: ExecutorService = Executors.newFixedThreadPool(threadCount)
-    private var watchService: WatchService? = null
-    private val watcherRunning = AtomicBoolean(false)
-    private var watcherThread: Thread? = null
-
-    private val keyToDir = ConcurrentHashMap<WatchKey, Path>()
 
     fun index(paths: List<Path>) {
         println("Index roots: " + paths.map { it.toAbsolutePath() })
         paths.forEach { path ->
             for (p in pathWalker.walk(path)) {
-                scheduleIndex(p)
+                taskExecutor.scheduleIndex(p, fileProcessor, this::indexFile)
             }
         }
     }
 
     fun startWatching(paths: List<Path>) {
         println("Start Watching roots: " + paths.map { it.toAbsolutePath() })
-        ensureWatchService()
-
-        paths.forEach { path ->
-            if (Files.isDirectory(path)) registerAll(path) else registerParentOfFile(
-                path
-            )
-        }
-
-        if (watcherRunning.compareAndSet(false, true)) {
-            watcherThread = Thread(this::watchLoop, "FileIndexService-Watcher").apply {
-                isDaemon = true; start()
-            }
-        }
+        fileSystemWatcher.startWatching(paths, this::handleFileSystemEvent)
     }
 
     fun query(input: String): Set<Path> {
@@ -64,24 +40,10 @@ class FileIndexService(
     fun dumpIndex(): Map<String, Set<Path>> = indexStore.dumpIndex()
 
     override fun close() {
-        watcherRunning.set(false)
-        try {
-            watchService?.close()
-        } catch (_: IOException) {
-        }
-        watcherThread?.interrupt()
-        pool.shutdownNow()
+        fileSystemWatcher.close()
+        taskExecutor.close()
     }
 
-    private fun scheduleIndex(path: Path) {
-        if (!fileProcessor.canProcess(path)) return
-        pool.submit { safeIndex(path) }
-    }
-
-    private fun safeIndex(path: Path) = try {
-        indexFile(path)
-    } catch (_: Throwable) {
-    }
 
     private fun indexFile(path: Path) {
         val newTokens = fileProcessor.processFile(path)
@@ -99,73 +61,25 @@ class FileIndexService(
         indexStore.removeFile(path)
     }
 
-
-    private fun ensureWatchService() {
-        if (watchService == null) watchService = FileSystems.getDefault().newWatchService()
-    }
-
-    private fun register(dir: Path) {
-        if (!Files.isDirectory(dir)) return
-        val ws = watchService ?: return
-
-        val key = dir.register(ws, ENTRY_CREATE, ENTRY_MODIFY, ENTRY_DELETE)
-        keyToDir[key] = dir
-
-        println("📁 Registered: ${dir.toAbsolutePath()}")
-    }
-
-    private fun registerAll(start: Path) {
-        Files.walk(start)
-            .use { paths -> paths.filter { Files.isDirectory(it) }.forEach { register(it) } }
-    }
-
-    private fun registerParentOfFile(file: Path) {
-        val parent = file.parent ?: return
-        register(parent)
-    }
-
-    private fun watchLoop() {
-        val ws = watchService ?: return
-        while (watcherRunning.get()) {
-            val key = try {
-                ws.take()
-            } catch (_: InterruptedException) {
-                break
-            } catch (_: ClosedWatchServiceException) {
-                break
-            }
-
-            val directory = keyToDir[key]
-            if (directory == null) {
-                key.reset(); continue
-            }
-
-            for (event in key.pollEvents()) {
-                val kind = event.kind()
-
-                if (kind == OVERFLOW) continue
-
-                @Suppress("UNCHECKED_CAST")
-                val e = event as WatchEvent<Path>
-                val child = directory.resolve(e.context())
-
-                when (kind) {
-                    ENTRY_CREATE -> {
-                        if (Files.isDirectory(child)) {
-                            registerAll(child)
-                            Files.walk(child).use { pathStream ->
-                                pathStream.filter { Files.isRegularFile(it) }
-                                    .forEach { scheduleIndex(it) }
-                            }
-                        } else scheduleIndex(child)
+    private fun handleFileSystemEvent(event: FileSystemEvent) {
+        when (event) {
+            is FileSystemEvent.Created -> {
+                if (Files.isDirectory(event.path)) {
+                    // Index all files in the newly created directory
+                    for (p in pathWalker.walk(event.path)) {
+                        taskExecutor.scheduleIndex(p, fileProcessor, this::indexFile)
                     }
-                    ENTRY_MODIFY -> scheduleIndex(child)
-                    ENTRY_DELETE -> removeFile(child)
+                } else {
+                    taskExecutor.scheduleIndex(event.path, fileProcessor, this::indexFile)
                 }
             }
-
-            val valid = key.reset()
-            if (!valid) keyToDir.remove(key)
+            is FileSystemEvent.Modified -> {
+                taskExecutor.scheduleIndex(event.path, fileProcessor, this::indexFile)
+            }
+            is FileSystemEvent.Deleted -> {
+                removeFile(event.path)
+            }
         }
     }
+
 }
