@@ -37,8 +37,17 @@ class TextFileProcessor(
         if (!canProcess(path)) return null
         
         return try {
-            val text = Files.newBufferedReader(path).use { it.readText() }
-            tokenizer.tokens(text).toSet()
+            val tokens = mutableSetOf<String>()
+            
+            Files.newBufferedReader(path).use { reader ->
+                reader.forEachLine { line ->
+                    tokenizer.tokens(line).forEach { token ->
+                        tokens.add(token)
+                    }
+                }
+            }
+            
+            tokens
         } catch (e: Throwable) {
             logger.log(Level.WARNING, "Failed to process file: $path", e)
             null
