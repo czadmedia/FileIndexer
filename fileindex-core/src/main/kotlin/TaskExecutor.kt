@@ -3,6 +3,7 @@ package org.example.fileindexcore
 import java.nio.file.Path
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
+import java.util.concurrent.ConcurrentHashMap
 import java.util.logging.Logger
 import java.util.logging.Level
 
@@ -37,14 +38,36 @@ class ThreadPoolTaskExecutor(
     private val logger = Logger.getLogger(ThreadPoolTaskExecutor::class.java.name)
     private val pool: ExecutorService = Executors.newFixedThreadPool(threadCount)
     
+    private val filesBeingProcessed = ConcurrentHashMap.newKeySet<Path>()
+    private val filesNeedingReprocessing = ConcurrentHashMap<Path, Pair<FileProcessor, (Path) -> Unit>>()
+    
     override fun submit(task: () -> Unit) {
         pool.submit(task)
     }
     
     override fun scheduleIndex(path: Path, fileProcessor: FileProcessor, indexOperation: (Path) -> Unit) {
         if (!fileProcessor.canProcess(path)) return
+        
+        if (!filesBeingProcessed.add(path)) {
+            // File is being processed, queue it for reprocessing with latest state
+            filesNeedingReprocessing[path] = Pair(fileProcessor, indexOperation)
+            logger.log(Level.FINE, "Queueing file for reprocessing after current processing completes: $path")
+            return
+        }
+        
         pool.submit {
             safeIndex(path, indexOperation)
+            
+            // Always remove from processing set when done
+            filesBeingProcessed.remove(path)
+            
+            // Check if this file needs reprocessing
+            val reprocessInfo = filesNeedingReprocessing.remove(path)
+            if (reprocessInfo != null) {
+                logger.log(Level.FINE, "Reprocessing file with latest changes: $path")
+                // Recursively schedule reprocessing
+                scheduleIndex(path, reprocessInfo.first, reprocessInfo.second)
+            }
         }
     }
     
