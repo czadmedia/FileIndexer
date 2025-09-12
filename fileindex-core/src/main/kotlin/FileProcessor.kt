@@ -3,6 +3,8 @@ package org.example.fileindexcore
 import java.nio.file.Files
 import java.nio.file.Path
 import kotlin.io.path.isRegularFile
+import java.util.logging.Logger
+import java.util.logging.Level
 
 /**
  * Handles reading and tokenizing files for indexing.
@@ -29,14 +31,16 @@ class TextFileProcessor(
     private val tokenizer: Tokenizer
 ) : FileProcessor {
     
+    private val logger = Logger.getLogger(TextFileProcessor::class.java.name)
+    
     override fun processFile(path: Path): Set<String>? {
         if (!canProcess(path)) return null
         
         return try {
             val text = Files.newBufferedReader(path).use { it.readText() }
             tokenizer.tokens(text).toSet()
-        } catch (_: Throwable) {
-            // Return null for any processing errors (permissions, encoding, I/O issues, etc.)
+        } catch (e: Throwable) {
+            logger.log(Level.WARNING, "Failed to process file: $path", e)
             null
         }
     }

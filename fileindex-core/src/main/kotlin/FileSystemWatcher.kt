@@ -96,8 +96,8 @@ class JavaFileSystemWatcher : FileSystemWatcher {
         stopWatching()
         try {
             watchService?.close()
-        } catch (_: IOException) {
-            // Ignore close errors
+        } catch (e: IOException) {
+            logger.log(Level.FINE, "Error closing watch service during shutdown", e)
         }
         eventHandler = null
     }
@@ -137,9 +137,11 @@ class JavaFileSystemWatcher : FileSystemWatcher {
         while (watcherRunning.get()) {
             val key = try {
                 ws.take()
-            } catch (_: InterruptedException) {
+            } catch (e: InterruptedException) {
+                logger.log(Level.FINE, "File watcher interrupted, stopping watch loop", e)
                 break
-            } catch (_: ClosedWatchServiceException) {
+            } catch (e: ClosedWatchServiceException) {
+                logger.log(Level.FINE, "Watch service closed, stopping watch loop", e)
                 break
             }
             

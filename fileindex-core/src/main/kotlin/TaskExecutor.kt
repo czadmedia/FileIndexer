@@ -3,6 +3,8 @@ package org.example.fileindexcore
 import java.nio.file.Path
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
+import java.util.logging.Logger
+import java.util.logging.Level
 
 /**
  * Handles task execution and thread management for file indexing operations.
@@ -32,6 +34,7 @@ class ThreadPoolTaskExecutor(
     threadCount: Int = Runtime.getRuntime().availableProcessors().coerceAtLeast(2)
 ) : TaskExecutor {
     
+    private val logger = Logger.getLogger(ThreadPoolTaskExecutor::class.java.name)
     private val pool: ExecutorService = Executors.newFixedThreadPool(threadCount)
     
     override fun submit(task: () -> Unit) {
@@ -56,8 +59,8 @@ class ThreadPoolTaskExecutor(
     private fun safeIndex(path: Path, indexOperation: (Path) -> Unit) {
         try {
             indexOperation(path)
-        } catch (_: Throwable) {
-            // Silently ignore processing errors
+        } catch (e: Throwable) {
+            logger.log(Level.WARNING, "Error processing file for indexing: $path", e)
         }
     }
 }
