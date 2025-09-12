@@ -5,6 +5,8 @@ import java.nio.file.*
 import java.nio.file.StandardWatchEventKinds.*
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicBoolean
+import java.util.logging.Logger
+import java.util.logging.Level
 
 /**
  * Event types for file system changes.
@@ -52,6 +54,7 @@ interface FileSystemWatcher : AutoCloseable {
  * Matches the existing behavior of FileIndexService's watch functionality.
  */
 class JavaFileSystemWatcher : FileSystemWatcher {
+    private val logger = Logger.getLogger(JavaFileSystemWatcher::class.java.name)
     private var watchService: WatchService? = null
     private val watcherRunning = AtomicBoolean(false)
     private var watcherThread: Thread? = null
@@ -112,7 +115,7 @@ class JavaFileSystemWatcher : FileSystemWatcher {
         val key = dir.register(ws, ENTRY_CREATE, ENTRY_MODIFY, ENTRY_DELETE)
         keyToDir[key] = dir
         
-        println("📁 Registered: ${dir.toAbsolutePath()}")
+        logger.fine("Registered directory for watching: ${dir.toAbsolutePath()}")
     }
     
     private fun registerAll(start: Path) {
@@ -172,8 +175,7 @@ class JavaFileSystemWatcher : FileSystemWatcher {
                 try {
                     handler.onEvent(fsEvent)
                 } catch (e: Exception) {
-                    // Log error but continue processing events
-                    println("Error handling file system event: ${e.message}")
+                    logger.log(Level.WARNING, "Error handling file system event for path: ${fsEvent.path}", e)
                 }
             }
             

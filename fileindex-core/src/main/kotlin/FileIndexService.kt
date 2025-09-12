@@ -1,6 +1,8 @@
 package org.example.fileindexcore
 
-import java.nio.file.*
+import java.nio.file.Files
+import java.nio.file.Path
+import java.util.logging.Logger
 
 /**
  * Thread-safe file index with optional filesystem watching. Holds an inverted index
@@ -15,9 +17,11 @@ class FileIndexService(
     private val fileSystemWatcher: FileSystemWatcher = JavaFileSystemWatcher(),
     private val taskExecutor: TaskExecutor = ThreadPoolTaskExecutor()
 ) : AutoCloseable {
+    
+    private val logger = Logger.getLogger(FileIndexService::class.java.name)
 
     fun index(paths: List<Path>) {
-        println("Index roots: " + paths.map { it.toAbsolutePath() })
+        logger.info("Indexing roots: ${paths.map { it.toAbsolutePath() }}")
         paths.forEach { path ->
             for (p in pathWalker.walk(path)) {
                 taskExecutor.scheduleIndex(p, fileProcessor, this::indexFile)
@@ -26,7 +30,7 @@ class FileIndexService(
     }
 
     fun startWatching(paths: List<Path>) {
-        println("Start Watching roots: " + paths.map { it.toAbsolutePath() })
+        logger.info("Starting file system watching for roots: ${paths.map { it.toAbsolutePath() }}")
         fileSystemWatcher.startWatching(paths, this::handleFileSystemEvent)
     }
 
