@@ -11,8 +11,8 @@ import java.util.logging.Logger
  */
 class FileIndexService(
     private val tokenizer: Tokenizer = SimpleWordTokenizer(),
-    private val indexStore: IndexStore = ConcurrentIndexStore(),
     private val fileProcessor: FileProcessor = TextFileProcessor(tokenizer),
+    private val indexStore: IndexStore = PositionalIndexStore(tokenizer, fileProcessor),
     private val pathWalker: PathWalker = RecursivePathWalker(),
     private val fileSystemWatcher: FileSystemWatcher = JavaFileSystemWatcher(),
     private val taskExecutor: TaskExecutor = ThreadPoolTaskExecutor()
@@ -40,19 +40,58 @@ class FileIndexService(
         val norm = tokenizer.normalizeSingleToken(input)
         return indexStore.query(norm)
     }
+    
+    /**
+     * Query for files containing the specified sequence of tokens in exact order.
+     * Performs phrase search - finds files where tokens appear consecutively.
+     */
+    fun querySequence(phrase: String): Set<Path> {
+        if (phrase.isBlank()) return emptySet()
+        
+        // Tokenize the input phrase to get the sequence
+        val tokens = tokenizer.tokens(phrase).toList()
+        if (tokens.isEmpty()) return emptySet()
+        
+        return indexStore.querySequence(tokens)
+    }
+    
+    /**
+     * Query for files containing the specified sequence of tokens in exact order.
+     * Direct token sequence version for more control.
+     */
+    fun querySequence(tokens: List<String>): Set<Path> {
+        if (tokens.isEmpty()) return emptySet()
+        
+        // Normalize tokens using the tokenizer's normalization
+        val normalizedTokens = tokens.map { tokenizer.normalizeSingleToken(it) }
+        return indexStore.querySequence(normalizedTokens)
+    }
 
     fun dumpIndex(): Map<String, Set<Path>> = indexStore.dumpIndex()
 
     private fun indexFile(path: Path) {
-        val newTokens = fileProcessor.processFile(path)
-        if (newTokens == null) {
-            // File cannot be processed, remove it from index
-            indexStore.removeFile(path)
-            return
+        when (indexStore) {
+            is PositionalIndexOperations -> {
+                // Use positional indexing for maximum efficiency
+                val newTokenPositions = fileProcessor.processFileWithPositions(path)
+                if (newTokenPositions == null) {
+                    indexStore.removeFile(path)
+                    return
+                }
+                val oldTokens = indexStore.getFileTokens(path)
+                indexStore.updateFileTokensWithPositions(path, newTokenPositions, oldTokens)
+            }
+            is SimpleIndexOperations -> {
+                // Use standard token set indexing
+                val newTokens = fileProcessor.processFile(path)
+                if (newTokens == null) {
+                    indexStore.removeFile(path)
+                    return
+                }
+                val oldTokens = indexStore.getFileTokens(path)
+                indexStore.updateFileTokens(path, newTokens, oldTokens)
+            }
         }
-
-        val oldTokens = indexStore.getFileTokens(path)
-        indexStore.updateFileTokens(path, newTokens, oldTokens)
     }
 
     private fun handleFileSystemEvent(event: FileSystemEvent) {

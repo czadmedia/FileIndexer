@@ -19,6 +19,9 @@ class ConcurrentProcessingTest {
             override fun processFile(path: Path): Set<String> {
                 return setOf("test", "content")
             }
+            override fun processFileWithPositions(path: Path): Map<String, List<Int>> {
+                return mapOf("test" to listOf(0), "content" to listOf(1))
+            }
             override fun canProcess(path: Path): Boolean = Files.exists(path)
         }
         
@@ -49,6 +52,9 @@ class ConcurrentProcessingTest {
         
         val mockFileProcessor = object : FileProcessor {
             override fun processFile(path: Path): Set<String> = setOf("content")
+            override fun processFileWithPositions(path: Path): Map<String, List<Int>> {
+                return mapOf("content" to listOf(0))
+            }
             override fun canProcess(path: Path): Boolean = Files.exists(path)
         }
         
@@ -78,6 +84,10 @@ class ConcurrentProcessingTest {
             override fun processFile(path: Path): Set<String> {
                 Thread.sleep(10) // Brief processing time
                 return setOf("content")
+            }
+            override fun processFileWithPositions(path: Path): Map<String, List<Int>> {
+                Thread.sleep(10) // Brief processing time
+                return mapOf("content" to listOf(0))
             }
             override fun canProcess(path: Path): Boolean = Files.exists(path)
         }
