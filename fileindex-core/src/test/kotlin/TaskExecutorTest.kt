@@ -8,7 +8,7 @@ import java.nio.file.Path
  * Tests to verify the concurrent processing prevention mechanism works.
  * The main verification is that existing functionality still works correctly.
  */
-class ConcurrentProcessingTest {
+class TaskExecutorTest {
 
     @Test
     fun `concurrent processing mechanism does not break basic functionality`() {
