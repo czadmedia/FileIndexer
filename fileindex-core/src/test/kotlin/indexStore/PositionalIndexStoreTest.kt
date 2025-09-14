@@ -1,5 +1,7 @@
+package indexStore
+
 import org.example.fileindexcore.FileProcessor
-import org.example.fileindexcore.PositionalIndexStore
+import org.example.fileindexcore.indexStore.PositionalIndexStore
 import org.example.fileindexcore.SimpleWordTokenizer
 import org.example.fileindexcore.TextFileProcessor
 import org.example.fileindexcore.Tokenizer
@@ -13,7 +15,7 @@ import java.util.concurrent.CountDownLatch
 import java.util.concurrent.Executors
 
 class PositionalIndexStoreTest {
-    
+
     private lateinit var tokenizer: Tokenizer
     private lateinit var fileProcessor: FileProcessor
     private lateinit var store: PositionalIndexStore
@@ -22,7 +24,7 @@ class PositionalIndexStoreTest {
     fun setUp() {
         tokenizer = SimpleWordTokenizer()
         fileProcessor = TextFileProcessor(tokenizer)
-        store = PositionalIndexStore(tokenizer, fileProcessor)
+        store = PositionalIndexStore()
     }
     
     @Test

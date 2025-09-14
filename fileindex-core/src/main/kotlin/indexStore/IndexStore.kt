@@ -1,4 +1,4 @@
-package org.example.fileindexcore
+package org.example.fileindexcore.indexStore
 
 import java.nio.file.Path
 

@@ -133,10 +133,6 @@ class TokenizerTest {
     }
 }
 
-// ========================================
-// Example Tokenizer Implementations
-// ========================================
-
 /**
  * Example of a stateful tokenizer that preserves word boundaries across chunks.
  * Demonstrates how the session-based API enables complex tokenization strategies.
@@ -165,9 +161,9 @@ private class WordBoundaryPreservingTokenizer : Tokenizer {
                     val firstWordEnd = text.indexOfFirst { !it.isLetter() }
                     if (firstWordEnd > 0) {
                         val combinedWord = if (pending.endsWith('-')) {
-                            pending.dropLast(1) + text.substring(0, firstWordEnd)
+                            pending.dropLast(1) + text.take(firstWordEnd)
                         } else {
-                            pending + text.substring(0, firstWordEnd)
+                            pending + text.take(firstWordEnd)
                         }
                         tokens.addAll(baseTokenizer.tokens(combinedWord))
                         processedText = text.substring(firstWordEnd)

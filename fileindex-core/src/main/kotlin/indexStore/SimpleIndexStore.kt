@@ -1,8 +1,13 @@
-package org.example.fileindexcore
+package org.example.fileindexcore.indexStore
 
+import org.example.fileindexcore.FileProcessor
+import org.example.fileindexcore.SimpleWordTokenizer
+import org.example.fileindexcore.TextFileProcessor
+import org.example.fileindexcore.Tokenizer
 import java.nio.file.Files
 import java.nio.file.Path
 import java.util.concurrent.ConcurrentHashMap
+import kotlin.collections.iterator
 
 /**
  * Simple inverted index implementation using basic token-to-files mapping.

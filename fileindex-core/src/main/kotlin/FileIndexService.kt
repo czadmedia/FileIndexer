@@ -1,5 +1,9 @@
 package org.example.fileindexcore
 
+import org.example.fileindexcore.indexStore.IndexStore
+import org.example.fileindexcore.indexStore.PositionalIndexOperations
+import org.example.fileindexcore.indexStore.PositionalIndexStore
+import org.example.fileindexcore.indexStore.SimpleIndexOperations
 import java.nio.file.Files
 import java.nio.file.Path
 import java.util.logging.Logger
@@ -12,7 +16,7 @@ import java.util.logging.Logger
 class FileIndexService(
     private val tokenizer: Tokenizer = SimpleWordTokenizer(),
     private val fileProcessor: FileProcessor = TextFileProcessor(tokenizer),
-    private val indexStore: IndexStore = PositionalIndexStore(tokenizer, fileProcessor),
+    private val indexStore: IndexStore = PositionalIndexStore(),
     private val pathWalker: PathWalker = RecursivePathWalker(),
     private val fileSystemWatcher: FileSystemWatcher = JavaFileSystemWatcher(),
     private val taskExecutor: TaskExecutor = ThreadPoolTaskExecutor()

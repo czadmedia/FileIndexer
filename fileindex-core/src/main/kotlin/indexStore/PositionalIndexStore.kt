@@ -1,7 +1,9 @@
-package org.example.fileindexcore
+package org.example.fileindexcore.indexStore
 
 import java.nio.file.Path
 import java.util.concurrent.ConcurrentHashMap
+import kotlin.collections.iterator
+import kotlin.math.abs
 
 /**
  * Advanced positional inverted index implementation.
@@ -24,10 +26,7 @@ import java.util.concurrent.ConcurrentHashMap
  * - Slower indexing due to position tracking
  * - More complex data structures
  */
-class PositionalIndexStore(
-    private val tokenizer: Tokenizer = SimpleWordTokenizer(),
-    private val fileProcessor: FileProcessor = TextFileProcessor(tokenizer)
-) : IndexStore, PositionalIndexOperations {
+class PositionalIndexStore: IndexStore, PositionalIndexOperations {
     
     // Positional inverted index: token -> file -> [positions]
     private val positionalInverted: ConcurrentHashMap<String, ConcurrentHashMap<Path, List<Int>>> = ConcurrentHashMap()
@@ -172,7 +171,7 @@ class PositionalIndexStore(
                     for (i in 1 until allPositions.size) {
                         val positions = allPositions[i]
                         val validPosition = positions.any { pos -> 
-                            kotlin.math.abs(pos - startPos) <= maxDistance 
+                            abs(pos - startPos) <= maxDistance
                         }
                         if (!validPosition) {
                             found = false

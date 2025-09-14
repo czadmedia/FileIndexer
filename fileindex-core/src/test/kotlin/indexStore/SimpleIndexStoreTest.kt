@@ -1,5 +1,10 @@
-package org.example.fileindexcore
+package indexStore
 
+import org.example.fileindexcore.FileProcessor
+import org.example.fileindexcore.SimpleWordTokenizer
+import org.example.fileindexcore.TextFileProcessor
+import org.example.fileindexcore.Tokenizer
+import org.example.fileindexcore.indexStore.SimpleIndexStore
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.BeforeEach
@@ -396,7 +401,7 @@ class SimpleIndexStoreTest {
         println("1000 simple queries took: ${queryTime}ms")
         
         // Verify correctness
-        assertTrue(store.query("token25").size > 0)
+        assertTrue(store.query("token25").isNotEmpty())
         
         // Performance should be reasonable (adjust based on hardware)
         assertTrue(indexTime < 5000, "Simple indexing should be very fast")
