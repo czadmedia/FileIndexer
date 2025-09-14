@@ -1,0 +1,6 @@
+jdk:
+  - openjdk17
+before:
+  - echo "JitPack build starting for FileIndexer"
+install:
+  - ./gradlew :fileindex-core:clean :fileindex-core:publishToMavenLocal -x test --no-daemon

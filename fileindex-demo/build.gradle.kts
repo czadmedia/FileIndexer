@@ -12,7 +12,7 @@ repositories {
 }
 
 dependencies {
-    implementation("org.example:fileindex-core:0.1.0")
+    implementation(project(":fileindex-core"))
     implementation(kotlin("stdlib"))
 
     testImplementation(kotlin("test"))
