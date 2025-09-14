@@ -7,6 +7,8 @@ import org.example.fileindexcore.Tokenizer
 import java.nio.file.Files
 import java.nio.file.Path
 import java.util.concurrent.ConcurrentHashMap
+import java.util.logging.Level
+import java.util.logging.Logger
 import kotlin.collections.iterator
 
 /**
@@ -23,6 +25,7 @@ class SimpleIndexStore(
     private val fileProcessor: FileProcessor = TextFileProcessor(tokenizer)
 ) : IndexStore, SimpleIndexOperations {
     
+    private val logger = Logger.getLogger(SimpleIndexStore::class.java.name)
     private val inverted: ConcurrentHashMap<String, MutableSet<Path>> = ConcurrentHashMap()
     private val fileTokens: ConcurrentHashMap<Path, Set<String>> = ConcurrentHashMap()
     
@@ -116,6 +119,7 @@ class SimpleIndexStore(
                         }
                     }
                 } catch (e: Exception) {
+                    logger.log(Level.WARNING, "Failed to read file during sequence query verification: $filePath", e)
                     continue // Skip files that can't be read
                 }
             }
