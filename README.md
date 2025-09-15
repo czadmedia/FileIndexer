@@ -19,7 +19,7 @@ A high-performance file indexing and search library for Kotlin/Java applications
 
 ```kotlin
 dependencies {
-    implementation("org.example:fileindex-core:0.1.0")
+    implementation("org.example:fileindex-core:0.1.3")
 }
 ```
 
@@ -27,7 +27,7 @@ dependencies {
 
 ```groovy
 dependencies {
-    implementation 'org.example:fileindex-core:0.1.0'
+    implementation 'org.example:fileindex-core:0.1.3'
 }
 ```
 
@@ -88,7 +88,7 @@ service.startWatching(listOf(Paths.get("documents/")))
 // Chain multiple async operations
 service.index(listOf(Paths.get("documents/")))
 service.query("kotlin")
-    .thenCompose { kotlinFiles -> 
+    .thenCompose { kotlinFiles ->
         if (kotlinFiles.isNotEmpty()) {
             service.querySequence("kotlin spring")
         } else {
