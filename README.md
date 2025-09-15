@@ -90,10 +90,10 @@ val service = FileIndexService()
 try {
     service.index(listOf(Paths.get("documents/")))
     service.startWatching(listOf(Paths.get("documents/")))
-    
+
     // Application continues running...
     val results = service.query("search term")
-    
+
 } finally {
     service.close() // Always clean up resources
 }
@@ -122,10 +122,3 @@ FileIndexService().use { service ->
 - **`querySequence(phrase)`** - Find files with exact phrase
 - **`startWatching()`** - Enable automatic file monitoring
 - **`clear()`** - Clear the entire index
-
-## Performance
-
-- **Indexing**: ~50,000 files/second (typical text files)
-- **Query**: Sub-millisecond response times
-- **Memory**: ~10MB per 100,000 indexed files
-- **Phrase Search**: Linear time complexity with KMP-like optimization

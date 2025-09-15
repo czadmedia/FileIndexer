@@ -21,7 +21,7 @@ class FileIndexService(
     private val fileSystemWatcher: FileSystemWatcher = JavaFileSystemWatcher(),
     private val taskExecutor: TaskExecutor = ThreadPoolTaskExecutor()
 ) : AutoCloseable {
-    
+
     private val logger = Logger.getLogger(FileIndexService::class.java.name)
 
     fun index(paths: List<Path>) {
@@ -44,29 +44,27 @@ class FileIndexService(
         val norm = tokenizer.normalizeSingleToken(input)
         return indexStore.query(norm)
     }
-    
+
     /**
      * Query for files containing the specified sequence of tokens in exact order.
      * Performs phrase search - finds files where tokens appear consecutively.
      */
     fun querySequence(phrase: String): Set<Path> {
         if (phrase.isBlank()) return emptySet()
-        
-        // Tokenize the input phrase to get the sequence
+
         val tokens = tokenizer.tokens(phrase).toList()
         if (tokens.isEmpty()) return emptySet()
-        
+
         return indexStore.querySequence(tokens)
     }
-    
+
     /**
      * Query for files containing the specified sequence of tokens in exact order.
      * Direct token sequence version for more control.
      */
     fun querySequence(tokens: List<String>): Set<Path> {
         if (tokens.isEmpty()) return emptySet()
-        
-        // Normalize tokens using the tokenizer's normalization
+
         val normalizedTokens = tokens.map { tokenizer.normalizeSingleToken(it) }
         return indexStore.querySequence(normalizedTokens)
     }
@@ -76,7 +74,6 @@ class FileIndexService(
     private fun indexFile(path: Path) {
         when (indexStore) {
             is PositionalIndexOperations -> {
-                // Use positional indexing for maximum efficiency
                 val newTokenPositions = fileProcessor.processFileWithPositions(path)
                 if (newTokenPositions == null) {
                     indexStore.removeFile(path)
@@ -85,8 +82,8 @@ class FileIndexService(
                 val oldTokens = indexStore.getFileTokens(path)
                 indexStore.updateFileTokensWithPositions(path, newTokenPositions, oldTokens)
             }
+
             is SimpleIndexOperations -> {
-                // Use standard token set indexing
                 val newTokens = fileProcessor.processFile(path)
                 if (newTokens == null) {
                     indexStore.removeFile(path)
@@ -102,7 +99,6 @@ class FileIndexService(
         when (event) {
             is FileSystemEvent.Created -> {
                 if (Files.isDirectory(event.path)) {
-                    // Index all files in the newly created directory
                     for (p in pathWalker.walk(event.path)) {
                         taskExecutor.scheduleIndex(p, fileProcessor, this::indexFile)
                     }
@@ -110,9 +106,11 @@ class FileIndexService(
                     taskExecutor.scheduleIndex(event.path, fileProcessor, this::indexFile)
                 }
             }
+
             is FileSystemEvent.Modified -> {
                 taskExecutor.scheduleIndex(event.path, fileProcessor, this::indexFile)
             }
+
             is FileSystemEvent.Deleted -> {
                 indexStore.removeFile(event.path)
             }

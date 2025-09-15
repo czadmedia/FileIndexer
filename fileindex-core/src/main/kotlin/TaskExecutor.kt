@@ -15,12 +15,12 @@ interface TaskExecutor : AutoCloseable {
      * Submit a task for execution.
      */
     fun submit(task: () -> Unit)
-    
+
     /**
      * Schedule indexing of a file if it can be processed.
      */
     fun scheduleIndex(path: Path, fileProcessor: FileProcessor, indexOperation: (Path) -> Unit)
-    
+
     /**
      * Shutdown the executor and clean up resources.
      */
@@ -34,51 +34,47 @@ interface TaskExecutor : AutoCloseable {
 class ThreadPoolTaskExecutor(
     threadCount: Int = Runtime.getRuntime().availableProcessors().coerceAtLeast(2)
 ) : TaskExecutor {
-    
+
     private val logger = Logger.getLogger(ThreadPoolTaskExecutor::class.java.name)
     private val pool: ExecutorService = Executors.newFixedThreadPool(threadCount)
-    
+
     private val filesBeingProcessed = ConcurrentHashMap.newKeySet<Path>()
     private val filesNeedingReprocessing = ConcurrentHashMap<Path, Pair<FileProcessor, (Path) -> Unit>>()
-    
+
     override fun submit(task: () -> Unit) {
         pool.submit(task)
     }
-    
+
     override fun scheduleIndex(path: Path, fileProcessor: FileProcessor, indexOperation: (Path) -> Unit) {
         if (!fileProcessor.canProcess(path)) return
-        
+
         if (!filesBeingProcessed.add(path)) {
-            // File is being processed, queue it for reprocessing with latest state
             filesNeedingReprocessing[path] = Pair(fileProcessor, indexOperation)
             logger.log(Level.FINE, "Queueing file for reprocessing after current processing completes: $path")
             return
         }
-        
+
         pool.submit {
             safeIndex(path, indexOperation)
-            
-            // Always remove from processing set when done
+
             filesBeingProcessed.remove(path)
-            
-            // Check if this file needs reprocessing
+
             val reprocessInfo = filesNeedingReprocessing.remove(path)
             if (reprocessInfo != null) {
                 logger.log(Level.FINE, "Reprocessing file with latest changes: $path")
-                // Recursively schedule reprocessing
                 scheduleIndex(path, reprocessInfo.first, reprocessInfo.second)
             }
         }
     }
-    
+
     override fun shutdown() {
         pool.shutdownNow()
     }
-    
+
     override fun close() {
         shutdown()
     }
-    
+
     private fun safeIndex(path: Path, indexOperation: (Path) -> Unit) {
         try {
             indexOperation(path)
