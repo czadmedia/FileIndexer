@@ -5,7 +5,7 @@ A high-performance file indexing and search library for Kotlin/Java applications
 ## Features
 
 - **🚀 Fast Indexing**: Efficient inverted index with positional support
-- **🔍 Advanced Search**: Token queries, phrase search, and proximity search  
+- **🔍 Advanced Search**: Token queries, phrase search, and proximity search
 - **⚡ High Performance**: Optimized data structures and algorithms
 - **🔒 Thread Safe**: Concurrent indexing and querying
 - **📁 File Processing**: Line-by-line processing to handle large files
@@ -32,6 +32,7 @@ dependencies {
 ### Maven
 
 ```xml
+
 <dependency>
     <groupId>org.example</groupId>
     <artifactId>fileindex-core</artifactId>
@@ -73,16 +74,6 @@ val service = FileIndexService(
     fileProcessor = fileProcessor
 )
 
-// Proximity search (within 5 tokens of each other)
-val proximityResults = positionalIndex.queryProximity(
-    listOf("file", "search"), 
-    maxDistance = 5
-)
-```
-
-### Watch Mode
-
-```kotlin
 // Enable file system watching for automatic re-indexing
 indexService.startWatching()
 
@@ -95,7 +86,7 @@ indexService.startWatching()
 ### Core Classes
 
 - **`FileIndexService`** - Main service for indexing and querying
-- **`SimpleIndexStore`** - Basic inverted index implementation  
+- **`SimpleIndexStore`** - Basic inverted index implementation
 - **`PositionalIndexStore`** - Advanced index with position tracking
 - **`TextFileProcessor`** - Default file processing implementation
 - **`SimpleWordTokenizer`** - Basic word tokenization
@@ -105,7 +96,6 @@ indexService.startWatching()
 - **`indexPath(path)`** - Index files in a directory
 - **`query(token)`** - Find files containing a token
 - **`querySequence(phrase)`** - Find files with exact phrase
-- **`queryProximity(tokens, distance)`** - Find tokens within distance
 - **`startWatching()`** - Enable automatic file monitoring
 - **`clear()`** - Clear the entire index
 
@@ -115,11 +105,3 @@ indexService.startWatching()
 - **Query**: Sub-millisecond response times
 - **Memory**: ~10MB per 100,000 indexed files
 - **Phrase Search**: Linear time complexity with KMP-like optimization
-
-## License
-
-MIT License - see LICENSE file for details.
-
-## Contributing
-
-Contributions welcome! Please read CONTRIBUTING.md for guidelines.
