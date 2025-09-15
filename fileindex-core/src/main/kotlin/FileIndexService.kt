@@ -6,6 +6,7 @@ import org.example.fileindexcore.indexStore.PositionalIndexStore
 import org.example.fileindexcore.indexStore.SimpleIndexOperations
 import java.nio.file.Files
 import java.nio.file.Path
+import java.util.concurrent.CompletableFuture
 import java.util.logging.Logger
 
 /**
@@ -38,35 +39,52 @@ class FileIndexService(
         fileSystemWatcher.startWatching(paths, this::handleFileSystemEvent)
     }
 
-    fun query(input: String): Set<Path> {
-        if (input.isBlank()) return emptySet()
+    /**
+     * Query for files containing a specific token with guaranteed up-to-date results.
+     * Returns a CompletableFuture that completes when indexing finishes and query is executed.
+     */
+    fun query(input: String): CompletableFuture<Set<Path>> {
+        if (input.isBlank()) {
+            return CompletableFuture.completedFuture(emptySet())
+        }
 
-        val norm = tokenizer.normalizeSingleToken(input)
-        return indexStore.query(norm)
+        return taskExecutor.getCompletionFuture().thenApply {
+            val norm = tokenizer.normalizeSingleToken(input)
+            indexStore.query(norm)
+        }
     }
 
     /**
      * Query for files containing the specified sequence of tokens in exact order.
-     * Performs phrase search - finds files where tokens appear consecutively.
+     * Performs phrase search with guaranteed up-to-date results.
      */
-    fun querySequence(phrase: String): Set<Path> {
-        if (phrase.isBlank()) return emptySet()
+    fun querySequence(phrase: String): CompletableFuture<Set<Path>> {
+        if (phrase.isBlank()) {
+            return CompletableFuture.completedFuture(emptySet())
+        }
 
-        val tokens = tokenizer.tokens(phrase).toList()
-        if (tokens.isEmpty()) return emptySet()
-
-        return indexStore.querySequence(tokens)
+        return taskExecutor.getCompletionFuture().thenApply {
+            // Tokenize the input phrase to get the sequence
+            val tokens = tokenizer.tokens(phrase).toList()
+            if (tokens.isEmpty()) emptySet()
+            else indexStore.querySequence(tokens)
+        }
     }
 
     /**
      * Query for files containing the specified sequence of tokens in exact order.
-     * Direct token sequence version for more control.
+     * Direct token sequence version with guaranteed up-to-date results.
      */
-    fun querySequence(tokens: List<String>): Set<Path> {
-        if (tokens.isEmpty()) return emptySet()
+    fun querySequence(tokens: List<String>): CompletableFuture<Set<Path>> {
+        if (tokens.isEmpty()) {
+            return CompletableFuture.completedFuture(emptySet())
+        }
 
-        val normalizedTokens = tokens.map { tokenizer.normalizeSingleToken(it) }
-        return indexStore.querySequence(normalizedTokens)
+        return taskExecutor.getCompletionFuture().thenApply {
+            // Normalize tokens using the tokenizer's normalization
+            val normalizedTokens = tokens.map { tokenizer.normalizeSingleToken(it) }
+            indexStore.querySequence(normalizedTokens)
+        }
     }
 
     fun dumpIndex(): Map<String, Set<Path>> = indexStore.dumpIndex()
@@ -99,6 +117,7 @@ class FileIndexService(
         when (event) {
             is FileSystemEvent.Created -> {
                 if (Files.isDirectory(event.path)) {
+                    // Index all files in the newly created directory
                     for (p in pathWalker.walk(event.path)) {
                         taskExecutor.scheduleIndex(p, fileProcessor, this::indexFile)
                     }

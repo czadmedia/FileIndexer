@@ -7,9 +7,11 @@ A high-performance file indexing and search library for Kotlin/Java applications
 - **🚀 Fast Indexing**: Efficient inverted index with positional support
 - **🔍 Advanced Search**: Token queries, phrase search, and proximity search
 - **⚡ High Performance**: Optimized data structures and algorithms
-- **🔒 Thread Safe**: Concurrent indexing and querying
+- **🔒 Thread Safe**: Production-ready concurrent indexing and querying
 - **📁 File Processing**: Line-by-line processing to handle large files
 - **🎯 Flexible**: Pluggable tokenizers and file processors
+- **✅ Guaranteed Fresh Results**: All queries return up-to-date results automatically
+- **🔄 Async by Design**: CompletableFuture-based API for non-blocking operations
 
 ## Quick Start
 
@@ -42,22 +44,28 @@ dependencies {
 
 ## Usage
 
-### Basic Usage
+### Basic Usage (Async with Guaranteed Up-to-Date Results)
 
 ```kotlin
 // Create a file indexing service
-val indexService = FileIndexService()
+val service = FileIndexService()
 
-// Index a directory
-indexService.indexPath(Paths.get("path/to/documents"))
+// Index a directory (async)
+service.index(listOf(Paths.get("path/to/documents")))
 
-// Search for files containing a token
-val files = indexService.query("kotlin")
-println("Found ${files.size} files containing 'kotlin'")
+// Search for files - returns CompletableFuture with guaranteed up-to-date results
+service.query("kotlin").thenAccept { files ->
+    println("Found ${files.size} files containing 'kotlin'")
+}
 
-// Phrase search
-val phraseResults = indexService.querySequence("file indexing")
-println("Found ${phraseResults.size} files with exact phrase")
+// Phrase search - also async with guaranteed results
+service.querySequence("file indexing").thenAccept { results ->
+    println("Found ${results.size} files with exact phrase")
+}
+
+// If you need to block until results are ready:
+val files = service.query("kotlin").get() // Blocks until indexing completes
+println("Up-to-date results: ${files.size} files")
 ```
 
 ### Advanced Usage
@@ -75,10 +83,21 @@ val service = FileIndexService(
 )
 
 // Enable file system watching for automatic re-indexing
-indexService.startWatching()
+service.startWatching(listOf(Paths.get("documents/")))
 
-// Your application continues running...
-// Files are automatically re-indexed when changed
+// Chain multiple async operations
+service.index(listOf(Paths.get("documents/")))
+service.query("kotlin")
+    .thenCompose { kotlinFiles -> 
+        if (kotlinFiles.isNotEmpty()) {
+            service.querySequence("kotlin spring")
+        } else {
+            CompletableFuture.completedFuture(emptySet())
+        }
+    }
+    .thenAccept { springKotlinFiles ->
+        println("Found ${springKotlinFiles.size} Kotlin Spring files")
+    }
 ```
 
 ### Manual Lifecycle Management

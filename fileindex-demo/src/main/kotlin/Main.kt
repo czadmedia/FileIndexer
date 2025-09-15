@@ -28,14 +28,15 @@ object Main {
 
                     val query = bufferedReader.readLine() ?: break
 
-                    val hits = service.query(query.trim())
+                    val hits = service.query(query.trim()).get()
 
                     if (hits.isEmpty()) println("No results.")
                     else hits.sortedBy { it.toString() }.forEach { println(" - $it") }
                 }
             } else {
-                Thread.sleep(300)
-
+                // Wait for indexing to complete before dumping
+                service.query("").get() // This ensures all indexing is complete
+                
                 val snapshot = service.dumpIndex().toSortedMap()
                 println("\n=== Inverted Index (${snapshot.size} tokens) ===")
 

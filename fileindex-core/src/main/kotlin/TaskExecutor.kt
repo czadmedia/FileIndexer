@@ -4,6 +4,8 @@ import java.nio.file.Path
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.CompletableFuture
+import java.util.concurrent.atomic.AtomicReference
 import java.util.logging.Logger
 import java.util.logging.Level
 
@@ -22,14 +24,21 @@ interface TaskExecutor : AutoCloseable {
     fun scheduleIndex(path: Path, fileProcessor: FileProcessor, indexOperation: (Path) -> Unit)
 
     /**
+     * Get a CompletableFuture that completes when all currently scheduled work finishes.
+     * Returns a completed future if no work is currently pending.
+     */
+    fun getCompletionFuture(): CompletableFuture<Void>
+
+    /**
      * Shutdown the executor and clean up resources.
      */
     fun shutdown()
 }
 
 /**
- * Default implementation using a fixed thread pool.
- * Matches the existing behavior of FileIndexService's thread management.
+ * Thread-safe implementation using a fixed thread pool with explicit file tracking.
+ * Uses concurrent sets to track pending files for better visibility and debugging.
+ * Provides CompletableFuture-based coordination for batch completion.
  */
 class ThreadPoolTaskExecutor(
     threadCount: Int = Runtime.getRuntime().availableProcessors().coerceAtLeast(2)
@@ -40,6 +49,13 @@ class ThreadPoolTaskExecutor(
 
     private val filesBeingProcessed = ConcurrentHashMap.newKeySet<Path>()
     private val filesNeedingReprocessing = ConcurrentHashMap<Path, Pair<FileProcessor, (Path) -> Unit>>()
+
+    private val pendingFiles = ConcurrentHashMap.newKeySet<Path>()
+    private val currentBatch = AtomicReference<CompletableFuture<Void>>(
+        CompletableFuture.completedFuture(null)
+    )
+
+    private val batchLock = Object()
 
     override fun submit(task: () -> Unit) {
         pool.submit(task)
@@ -54,15 +70,46 @@ class ThreadPoolTaskExecutor(
             return
         }
 
+        val batchFuture = synchronized(batchLock) {
+            pendingFiles.add(path)
+            if (pendingFiles.size == 1) {
+                // First file in new batch - create new completion future
+                val newBatch = CompletableFuture<Void>()
+                currentBatch.set(newBatch)
+                newBatch
+            } else {
+                currentBatch.get()
+            }
+        }
+
         pool.submit {
-            safeIndex(path, indexOperation)
+            try {
+                safeIndex(path, indexOperation)
+            } finally {
+                filesBeingProcessed.remove(path)
 
-            filesBeingProcessed.remove(path)
+                val reprocessInfo = filesNeedingReprocessing.remove(path)
+                if (reprocessInfo != null) {
+                    scheduleIndex(path, reprocessInfo.first, reprocessInfo.second)
+                } else {
+                    synchronized(batchLock) {
+                        pendingFiles.remove(path)
 
-            val reprocessInfo = filesNeedingReprocessing.remove(path)
-            if (reprocessInfo != null) {
-                logger.log(Level.FINE, "Reprocessing file with latest changes: $path")
-                scheduleIndex(path, reprocessInfo.first, reprocessInfo.second)
+                        if (pendingFiles.isEmpty()) {
+                            batchFuture.complete(null)
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    override fun getCompletionFuture(): CompletableFuture<Void> {
+        return synchronized(batchLock) {
+            if (pendingFiles.isNotEmpty()) {
+                currentBatch.get()
+            } else {
+                CompletableFuture.completedFuture(null)
             }
         }
     }

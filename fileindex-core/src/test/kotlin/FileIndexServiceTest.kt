@@ -19,10 +19,9 @@ class FileIndexServiceTest {
         FileIndexService(SimpleWordTokenizer()).use { service ->
             service.index(listOf(root))
 
-            awaitTrue {
-                val hits = service.query("kotlin")
-                hits.contains(path)
-            }
+            // Query automatically waits for indexing completion and returns up-to-date results
+            val hits = service.query("kotlin").get()
+            assertTrue(hits.contains(path))
         }
     }
 
@@ -38,10 +37,10 @@ class FileIndexServiceTest {
         FileIndexService(SimpleWordTokenizer()).use { service ->
             service.index(listOf(root))
 
-            awaitTrue {
-                val hits = service.query("kotlin")
-                hits.contains(path1) && hits.contains(path2)
-            }
+            // Query automatically waits for indexing completion and returns up-to-date results
+            val hits = service.query("kotlin").get()
+            assertTrue(hits.contains(path1))
+            assertTrue(hits.contains(path2))
         }
     }
 
@@ -56,17 +55,19 @@ class FileIndexServiceTest {
         write(path, "$alpha $bravo")
         FileIndexService(SimpleWordTokenizer()).use { service ->
             service.index(listOf(root))
-            awaitTrue { service.query(alpha).contains(path) && service.query(bravo).contains(path) }
+
+            // Verify initial indexing - queries wait for completion automatically
+            assertTrue(service.query(alpha).get().contains(path))
+            assertTrue(service.query(bravo).get().contains(path))
+
+            // Update file content and re-index
             write(path, "$alpha $charlie")
             service.index(listOf(path))
 
-            awaitTrue {
-                bravo !in service.dumpIndex().keys || !service.query(bravo).contains(path)
-            }
-            awaitTrue { service.query(charlie).contains(path) }
-
-            assertFalse(service.query(bravo).contains(path))
-            assertTrue(service.query(alpha).contains(path))
+            // Verify updated content - queries wait for re-indexing completion
+            assertTrue(service.query(charlie).get().contains(path))
+            assertFalse(service.query(bravo).get().contains(path))
+            assertTrue(service.query(alpha).get().contains(path))
         }
     }
 
@@ -81,7 +82,9 @@ class FileIndexServiceTest {
         FileIndexService(SimpleWordTokenizer()).use { service ->
             service.index(listOf(path))
 
-            awaitTrue { service.query(echo).count { it == path } == 1 }
+            // Query waits for indexing completion and returns up-to-date results
+            val hits = service.query(echo).get()
+            assertEquals(1, hits.count { it == path })
         }
     }
 
@@ -97,12 +100,12 @@ class FileIndexServiceTest {
             service.startWatching(listOf(dir))
             service.index(listOf(dir))
 
-            awaitTrue { service.query(alpha).contains(path) }
+            assertTrue(service.query(alpha).get().contains(path))
 
             Files.deleteIfExists(path)
 
             awaitTrue(watcherTimeout) {
-                !service.query(alpha).contains(path)
+                !service.query(alpha).get().contains(path)
             }
         }
     }
@@ -117,12 +120,12 @@ class FileIndexServiceTest {
             service.startWatching(listOf(dir))
             service.index(listOf(dir))
 
-            assertTrue(service.query(alpha).isEmpty())
+            assertTrue(service.query(alpha).get().isEmpty())
 
             write(path, alpha)
 
             awaitTrue(watcherTimeout) {
-                service.query(alpha).contains(path)
+                service.query(alpha).get().contains(path)
             }
         }
     }
@@ -131,8 +134,10 @@ class FileIndexServiceTest {
 
     private fun write(p: Path, text: String) {
         Files.createDirectories(p.parent)
-        Files.write(p, text.toByteArray(),
-            StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING, StandardOpenOption.WRITE)
+        Files.write(
+            p, text.toByteArray(),
+            StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING, StandardOpenOption.WRITE
+        )
     }
 
     private fun awaitTrue(timeoutMs: Long = 2000, stepMs: Long = 20, predicate: () -> Boolean) {
@@ -141,7 +146,7 @@ class FileIndexServiceTest {
             if (predicate()) return
             Thread.sleep(stepMs)
         }
-        fail("Condition not met within ${timeoutMs}ms")
+        fail("File watcher event condition not met within ${timeoutMs}ms")
     }
 }
 
