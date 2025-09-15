@@ -339,9 +339,6 @@ class PositionalIndexStoreTest {
         }
         val queryTime = System.currentTimeMillis() - startQuery
 
-        println("Indexing $numFiles files with $tokensPerFile tokens each took: ${indexTime}ms")
-        println("100 mixed queries took: ${queryTime}ms")
-
         // Verify correctness
         assertEquals(numFiles, store.query("token50").size)
         assertTrue(store.querySequence(listOf("token1", "token2")).isNotEmpty())
