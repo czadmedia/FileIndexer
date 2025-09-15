@@ -81,6 +81,30 @@ indexService.startWatching()
 // Files are automatically re-indexed when changed
 ```
 
+### Manual Lifecycle Management
+
+```kotlin
+// For long-running applications, manage lifecycle manually
+val service = FileIndexService()
+
+try {
+    service.index(listOf(Paths.get("documents/")))
+    service.startWatching(listOf(Paths.get("documents/")))
+    
+    // Application continues running...
+    val results = service.query("search term")
+    
+} finally {
+    service.close() // Always clean up resources
+}
+
+// Or use automatic resource management:
+FileIndexService().use { service ->
+    service.index(listOf(Paths.get("documents/")))
+    // Automatically closed when block exits
+}
+```
+
 ## API Reference
 
 ### Core Classes
