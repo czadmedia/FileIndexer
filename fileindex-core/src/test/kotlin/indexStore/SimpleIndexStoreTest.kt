@@ -34,11 +34,8 @@ class SimpleIndexStoreTest {
         val tokens = setOf("hello", "world", "test")
 
         store.updateFileTokens(path, tokens)
-
-        // Verify tokens are stored
+        
         assertEquals(tokens, store.getFileTokens(path))
-
-        // Verify queries work
         assertEquals(setOf(path), store.query("hello"))
         assertEquals(setOf(path), store.query("world"))
         assertEquals(setOf(path), store.query("test"))
@@ -49,24 +46,14 @@ class SimpleIndexStoreTest {
     fun `updateFileTokens handles updates correctly`() {
         val path = Paths.get("test.txt")
 
-        // Initial tokens
         val initialTokens = setOf("old", "shared")
         store.updateFileTokens(path, initialTokens)
-
-        // Update with new tokens
         val updatedTokens = setOf("new", "shared")
         store.updateFileTokens(path, updatedTokens, initialTokens)
 
-        // Verify old token is removed
         assertEquals(emptySet<Path>(), store.query("old"))
-
-        // Verify new token is added
         assertEquals(setOf(path), store.query("new"))
-
-        // Verify shared token remains
         assertEquals(setOf(path), store.query("shared"))
-
-        // Verify file tokens are correct
         assertEquals(updatedTokens, store.getFileTokens(path))
     }
 
@@ -74,13 +61,9 @@ class SimpleIndexStoreTest {
     fun `updateFileTokens handles incremental updates without oldTokens`() {
         val path = Paths.get("test.txt")
 
-        // Initial tokens
         store.updateFileTokens(path, setOf("a", "b"))
-
-        // Update without providing oldTokens (should detect changes automatically)
         store.updateFileTokens(path, setOf("b", "c"))
 
-        // Verify state
         assertEquals(emptySet<Path>(), store.query("a"))
         assertEquals(setOf(path), store.query("b"))
         assertEquals(setOf(path), store.query("c"))
@@ -93,27 +76,17 @@ class SimpleIndexStoreTest {
         Files.write(file, "the quick brown fox jumps over the lazy dog".toByteArray())
 
         try {
-            // Process and index file
             val tokens = fileProcessor.processFile(file)!!
             store.updateFileTokens(file, tokens)
 
-            // Test consecutive sequences (should be found by scanning)
             assertEquals(setOf(file), store.querySequence(listOf("quick", "brown", "fox")))
             assertEquals(setOf(file), store.querySequence(listOf("fox", "jumps", "over")))
             assertEquals(setOf(file), store.querySequence(listOf("the", "lazy", "dog")))
-
-            // Test non-consecutive sequences (should not match)
             assertEquals(emptySet<Path>(), store.querySequence(listOf("quick", "fox")))
             assertEquals(emptySet<Path>(), store.querySequence(listOf("brown", "jumps")))
-
-            // Test wrong order
             assertEquals(emptySet<Path>(), store.querySequence(listOf("fox", "brown", "quick")))
-
-            // Test single token queries
             assertEquals(setOf(file), store.querySequence(listOf("quick")))
             assertEquals(emptySet<Path>(), store.querySequence(listOf("missing")))
-
-            // Test empty sequence
             assertEquals(emptySet<Path>(), store.querySequence(emptyList()))
 
         } finally {
@@ -128,31 +101,22 @@ class SimpleIndexStoreTest {
         val file3 = Files.createTempFile("file3", ".txt")
 
         Files.write(file1, "hello world test sequence".toByteArray())
-        Files.write(file2, "hello test world sequence".toByteArray())  // different order
-        Files.write(file3, "world hello test sequence".toByteArray())  // different order
+        Files.write(file2, "hello test world sequence".toByteArray())
+        Files.write(file3, "world hello test sequence".toByteArray())
 
         try {
-            // Index all files
             listOf(file1, file2, file3).forEach { file ->
                 val tokens = fileProcessor.processFile(file)!!
                 store.updateFileTokens(file, tokens)
             }
 
-            // Test sequences that should match specific files
             assertEquals(setOf(file1), store.querySequence(listOf("hello", "world")))
             assertEquals(
                 setOf(file2, file3),
                 store.querySequence(listOf("hello", "test"))
-            ) // Both file2 and file3 have consecutive "hello test"
+            )
             assertEquals(setOf(file3), store.querySequence(listOf("world", "hello")))
-
-            // Test sequences that appear in multiple files 
-            // File1: "hello world test sequence" - matches "test sequence"
-            // File2: "hello test world sequence" - does NOT match "test sequence" (world is between)
-            // File3: "world hello test sequence" - matches "test sequence"
             assertEquals(setOf(file1, file3), store.querySequence(listOf("test", "sequence")))
-
-            // Test sequences that don't exist in any file
             assertEquals(emptySet<Path>(), store.querySequence(listOf("missing", "sequence")))
 
         } finally {
@@ -176,12 +140,9 @@ class SimpleIndexStoreTest {
             val tokens = fileProcessor.processFile(file)!!
             store.updateFileTokens(file, tokens)
 
-            // Test sequences across line boundaries
             assertEquals(setOf(file), store.querySequence(listOf("ends", "second")))
             assertEquals(setOf(file), store.querySequence(listOf("here", "third")))
             assertEquals(setOf(file), store.querySequence(listOf("line", "final")))
-
-            // Test longer cross-boundary sequences
             assertEquals(setOf(file), store.querySequence(listOf("first", "line", "ends", "second")))
 
         } finally {
@@ -194,22 +155,16 @@ class SimpleIndexStoreTest {
         val path1 = Paths.get("test1.txt")
         val path2 = Paths.get("test2.txt")
 
-        // Add tokens to both files
         store.updateFileTokens(path1, setOf("shared", "unique1"))
         store.updateFileTokens(path2, setOf("shared", "unique2"))
 
-        // Verify both files are indexed
         assertEquals(setOf(path1, path2), store.query("shared"))
         assertEquals(setOf(path1), store.query("unique1"))
         assertEquals(setOf(path2), store.query("unique2"))
 
-        // Remove first file
         val removedTokens = store.removeFile(path1)
 
-        // Verify return value
         assertEquals(setOf("shared", "unique1"), removedTokens)
-
-        // Verify first file is removed
         assertNull(store.getFileTokens(path1))
         assertEquals(setOf(path2), store.query("shared")) // Only path2 should remain
         assertEquals(emptySet<Path>(), store.query("unique1"))
@@ -234,11 +189,8 @@ class SimpleIndexStoreTest {
         val result1 = store.query("test")
         val result2 = store.query("test")
 
-        // Should get different instances (defensive copies)
         assertNotSame(result1, result2)
         assertEquals(result1, result2)
-
-        // Modifying result should not affect store
         if (result1 is MutableSet) {
             assertThrows<UnsupportedOperationException> {
                 result1.clear()
@@ -261,14 +213,13 @@ class SimpleIndexStoreTest {
         assertEquals(setOf(file2), dump["test"])
         assertEquals(3, dump.size)
 
-        // Verify it's a defensive copy
         val originalSize = dump.size
         if (dump is MutableMap) {
             assertThrows<UnsupportedOperationException> {
-                dump.clear() // This should throw if it's truly immutable
+                dump.clear()
             }
         }
-        assertEquals(originalSize, store.dumpIndex().size) // Store should be unchanged
+        assertEquals(originalSize, store.dumpIndex().size)
     }
 
     @Test
@@ -276,13 +227,11 @@ class SimpleIndexStoreTest {
         val path = Paths.get("test.txt")
         store.updateFileTokens(path, setOf("hello", "world"))
 
-        // Verify data exists
         assertFalse(store.dumpIndex().isEmpty())
         assertNotNull(store.getFileTokens(path))
 
         store.clear()
 
-        // Verify all data is cleared
         assertTrue(store.dumpIndex().isEmpty())
         assertNull(store.getFileTokens(path))
         assertEquals(emptySet<Path>(), store.query("hello"))
@@ -292,22 +241,20 @@ class SimpleIndexStoreTest {
     fun `handles edge cases gracefully`() {
         val path = Paths.get("test.txt")
 
-        // Empty token set
         store.updateFileTokens(path, emptySet())
-        assertEquals(emptySet<String>(), store.getFileTokens(path))
 
-        // Query non-existent tokens
+        assertEquals(emptySet<String>(), store.getFileTokens(path))
         assertEquals(emptySet<Path>(), store.query("nonexistent"))
         assertEquals(emptySet<Path>(), store.querySequence(listOf("nonexistent")))
 
-        // Query with very long sequences
         val longSequence = (1..1000).map { "token$it" }.toList()
+
         assertEquals(emptySet<Path>(), store.querySequence(longSequence))
 
-        // Multiple updates of the same file
         repeat(10) {
             store.updateFileTokens(path, setOf("token$it"))
         }
+
         assertEquals(setOf("token9"), store.getFileTokens(path))
     }
 
@@ -320,18 +267,14 @@ class SimpleIndexStoreTest {
             val tokens = fileProcessor.processFile(file)!!
             store.updateFileTokens(file, tokens)
 
-            // SimpleWordTokenizer normalizes to lowercase
             assertTrue(store.query("hello").contains(file))
             assertTrue(store.query("world").contains(file))
             assertTrue(store.query("test").contains(file))
 
-            // Original case should not match (depends on tokenizer)
             assertEquals(emptySet<Path>(), store.query("Hello"))
             assertEquals(emptySet<Path>(), store.query("WORLD"))
 
-            // Sequence queries should work with normalized tokens
             assertEquals(setOf(file), store.querySequence(listOf("hello", "world")))
-
         } finally {
             Files.deleteIfExists(file)
         }
@@ -366,14 +309,11 @@ class SimpleIndexStoreTest {
                     }
                 }
             }
-
             latch.await()
-
-            // Verify store is still functional after concurrent operations
             val testPath = Paths.get("final_test.txt")
             store.updateFileTokens(testPath, setOf("final"))
-            assertEquals(setOf(testPath), store.query("final"))
 
+            assertEquals(setOf(testPath), store.query("final"))
         } finally {
             executor.shutdown()
         }
@@ -384,7 +324,6 @@ class SimpleIndexStoreTest {
         val numFiles = 1000
         val tokensPerFile = 100
 
-        // Index many files
         val startIndex = System.currentTimeMillis()
         repeat(numFiles) { fileId ->
             val path = Paths.get("perf_file_$fileId.txt")
@@ -392,18 +331,13 @@ class SimpleIndexStoreTest {
             store.updateFileTokens(path, tokens)
         }
         val indexTime = System.currentTimeMillis() - startIndex
-
-        // Test query performance
         val startQuery = System.currentTimeMillis()
         repeat(1000) {
             store.query("token25")
         }
         val queryTime = System.currentTimeMillis() - startQuery
 
-        // Verify correctness
         assertTrue(store.query("token25").isNotEmpty())
-
-        // Performance should be reasonable (adjust based on hardware)
         assertTrue(indexTime < 5000, "Simple indexing should be very fast")
         assertTrue(queryTime < 1000, "Simple queries should be fast")
     }
@@ -413,7 +347,6 @@ class SimpleIndexStoreTest {
         val files = mutableListOf<Path>()
 
         try {
-            // Create files with known sequences
             repeat(100) { i ->
                 val file = Files.createTempFile("seq_perf_$i", ".txt")
                 val content = "start sequence token$i middle sequence end"
@@ -424,26 +357,20 @@ class SimpleIndexStoreTest {
                 store.updateFileTokens(file, tokens)
             }
 
-            // Measure single token queries
             val singleStart = System.currentTimeMillis()
             repeat(100) {
                 store.query("sequence")
             }
             val singleTime = System.currentTimeMillis() - singleStart
 
-            // Measure sequence queries (requires file scanning)
             val sequenceStart = System.currentTimeMillis()
             repeat(100) {
                 store.querySequence(listOf("start", "sequence"))
             }
             val sequenceTime = System.currentTimeMillis() - sequenceStart
 
-            // Sequence queries should be slower due to file scanning
             assertTrue(sequenceTime >= singleTime, "Sequence queries should be slower than single token queries")
-
-            // But still reasonable
             assertTrue(sequenceTime < 10000, "Sequence queries should complete in reasonable time")
-
         } finally {
             files.forEach { Files.deleteIfExists(it) }
         }
@@ -465,7 +392,6 @@ class SimpleIndexStoreTest {
             Files.deleteIfExists(emptyFile)
         }
 
-        // Test with whitespace-only file
         val whitespaceFile = Files.createTempFile("whitespace", ".txt")
         Files.write(whitespaceFile, "   \n\t  \r\n  ".toByteArray())
 
@@ -479,7 +405,6 @@ class SimpleIndexStoreTest {
             Files.deleteIfExists(whitespaceFile)
         }
 
-        // Test with special characters (depends on tokenizer)
         val specialFile = Files.createTempFile("special", ".txt")
         Files.write(specialFile, "hello@world.com test-case #hashtag".toByteArray())
 
@@ -487,7 +412,6 @@ class SimpleIndexStoreTest {
             val tokens = fileProcessor.processFile(specialFile)!!
             store.updateFileTokens(specialFile, tokens)
 
-            // Verify tokenizer behavior
             assertTrue(tokens.isNotEmpty())
 
         } finally {

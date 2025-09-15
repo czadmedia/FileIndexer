@@ -38,10 +38,7 @@ class PositionalIndexStoreTest {
 
         store.updateFileTokensWithPositions(path, tokenPositions)
 
-        // Verify file tokens
         assertEquals(setOf("hello", "world", "test"), store.getFileTokens(path))
-
-        // Verify queries
         assertEquals(setOf(path), store.query("hello"))
         assertEquals(setOf(path), store.query("world"))
         assertEquals(setOf(path), store.query("test"))
@@ -50,26 +47,20 @@ class PositionalIndexStoreTest {
     @Test
     fun `updateFileTokensWithPositions handles updates correctly`() {
         val path = Paths.get("test.txt")
-
-        // Initial state
         val initialPositions = mapOf(
             "old" to listOf(0),
             "shared" to listOf(1)
         )
         store.updateFileTokensWithPositions(path, initialPositions)
 
-        // Update with new positions
         val updatedPositions = mapOf(
             "new" to listOf(0),
             "shared" to listOf(1, 2) // Position changed
         )
         store.updateFileTokensWithPositions(path, updatedPositions, setOf("old", "shared"))
 
-        // Verify old token is removed
         assertEquals(emptySet<Path>(), store.query("old"))
-        // Verify new token is added
         assertEquals(setOf(path), store.query("new"))
-        // Verify file tokens are correct
         assertEquals(setOf("new", "shared"), store.getFileTokens(path))
     }
 
@@ -89,24 +80,19 @@ class PositionalIndexStoreTest {
 
         store.updateFileTokensWithPositions(path, tokenPositions)
 
-        // Test consecutive sequences
         assertEquals(setOf(path), store.querySequence(listOf("quick", "brown", "fox")))
         assertEquals(setOf(path), store.querySequence(listOf("fox", "jumps", "over")))
         assertEquals(setOf(path), store.querySequence(listOf("the", "lazy", "dog")))
 
-        // Test non-consecutive sequences (should not match)
         assertEquals(emptySet<Path>(), store.querySequence(listOf("quick", "fox")))
         assertEquals(emptySet<Path>(), store.querySequence(listOf("brown", "jumps")))
 
-        // Test sequences that don't exist
         assertEquals(emptySet<Path>(), store.querySequence(listOf("fox", "brown", "quick")))
         assertEquals(emptySet<Path>(), store.querySequence(listOf("nonexistent", "token")))
 
-        // Test single token queries
         assertEquals(setOf(path), store.querySequence(listOf("quick")))
         assertEquals(emptySet<Path>(), store.querySequence(listOf("missing")))
 
-        // Test empty sequence
         assertEquals(emptySet<Path>(), store.querySequence(emptyList()))
     }
 
@@ -116,7 +102,6 @@ class PositionalIndexStoreTest {
         val file2 = Paths.get("file2.txt")
         val file3 = Paths.get("file3.txt")
 
-        // File 1: "hello world test"
         store.updateFileTokensWithPositions(
             file1, mapOf(
                 "hello" to listOf(0),
@@ -124,8 +109,6 @@ class PositionalIndexStoreTest {
                 "test" to listOf(2)
             )
         )
-
-        // File 2: "hello test world" (different order)
         store.updateFileTokensWithPositions(
             file2, mapOf(
                 "hello" to listOf(0),
@@ -133,8 +116,6 @@ class PositionalIndexStoreTest {
                 "world" to listOf(2)
             )
         )
-
-        // File 3: "world hello test" (different order)
         store.updateFileTokensWithPositions(
             file3, mapOf(
                 "world" to listOf(0),
@@ -143,22 +124,20 @@ class PositionalIndexStoreTest {
             )
         )
 
-        // Test sequence queries
         assertEquals(setOf(file1), store.querySequence(listOf("hello", "world")))
         assertEquals(
             setOf(file2, file3),
             store.querySequence(listOf("hello", "test"))
-        ) // Both file2 and file3 have consecutive "hello test"
+        )
         assertEquals(setOf(file3), store.querySequence(listOf("world", "hello")))
         assertEquals(setOf(file1), store.querySequence(listOf("world", "test")))
         assertEquals(setOf(file2), store.querySequence(listOf("test", "world")))
 
-        // Test sequence that spans multiple positions
         assertEquals(setOf(file1), store.querySequence(listOf("hello", "world", "test")))
         assertEquals(
             setOf(file2),
             store.querySequence(listOf("hello", "test", "world"))
-        ) // File2 has this exact sequence
+        )
     }
 
     @Test
@@ -172,23 +151,18 @@ class PositionalIndexStoreTest {
 
         store.updateFileTokensWithPositions(path, tokenPositions)
 
-        // Verify tokens are present
         assertEquals(setOf("hello", "world", "test"), store.getFileTokens(path))
         assertEquals(setOf(path), store.query("hello"))
 
-        // Remove file
         val removedTokens = store.removeFile(path)
 
-        // Verify return value
         assertEquals(setOf("hello", "world", "test"), removedTokens)
 
-        // Verify file is removed
         assertNull(store.getFileTokens(path))
         assertEquals(emptySet<Path>(), store.query("hello"))
         assertEquals(emptySet<Path>(), store.query("world"))
         assertEquals(emptySet<Path>(), store.query("test"))
 
-        // Verify positional queries don't work
         assertEquals(emptySet<Path>(), store.querySequence(listOf("hello", "world")))
     }
 
@@ -213,7 +187,6 @@ class PositionalIndexStoreTest {
                 "world" to listOf(1)
             )
         )
-
         store.updateFileTokensWithPositions(
             file2, mapOf(
                 "hello" to listOf(0),
@@ -222,7 +195,6 @@ class PositionalIndexStoreTest {
         )
 
         val dump = store.dumpIndex()
-
         assertEquals(setOf(file1, file2), dump["hello"])
         assertEquals(setOf(file1), dump["world"])
         assertEquals(setOf(file2), dump["test"])
@@ -239,13 +211,11 @@ class PositionalIndexStoreTest {
             )
         )
 
-        // Verify data exists
         assertFalse(store.dumpIndex().isEmpty())
         assertNotNull(store.getFileTokens(path))
 
         store.clear()
 
-        // Verify all data is cleared
         assertTrue(store.dumpIndex().isEmpty())
         assertNull(store.getFileTokens(path))
         assertEquals(emptySet<Path>(), store.query("hello"))
@@ -255,18 +225,13 @@ class PositionalIndexStoreTest {
     fun `handles edge cases gracefully`() {
         val path = Paths.get("test.txt")
 
-        // Empty token positions
         store.updateFileTokensWithPositions(path, emptyMap())
         assertEquals(emptySet<String>(), store.getFileTokens(path))
 
-        // Token with empty positions list
         store.updateFileTokensWithPositions(path, mapOf("token" to emptyList()))
         assertEquals(setOf("token"), store.getFileTokens(path))
-
-        // Non-existent token queries
         assertEquals(emptySet<Path>(), store.query("nonexistent"))
 
-        // Query with very long sequences
         val longSequence = (1..1000).map { "token$it" }.toList()
         assertEquals(emptySet<Path>(), store.querySequence(longSequence))
     }
@@ -302,14 +267,11 @@ class PositionalIndexStoreTest {
                     }
                 }
             }
-
             latch.await()
-
-            // Verify store is still functional after concurrent operations
             val testPath = Paths.get("final_test.txt")
             store.updateFileTokensWithPositions(testPath, mapOf("final" to listOf(0)))
-            assertEquals(setOf(testPath), store.query("final"))
 
+            assertEquals(setOf(testPath), store.query("final"))
         } finally {
             executor.shutdown()
         }
@@ -320,7 +282,6 @@ class PositionalIndexStoreTest {
         val numFiles = 100
         val tokensPerFile = 1000
 
-        // Index many files
         val startIndex = System.currentTimeMillis()
         repeat(numFiles) { fileId ->
             val path = Paths.get("perf_file_$fileId.txt")
@@ -330,8 +291,6 @@ class PositionalIndexStoreTest {
             store.updateFileTokensWithPositions(path, positions)
         }
         val indexTime = System.currentTimeMillis() - startIndex
-
-        // Test query performance
         val startQuery = System.currentTimeMillis()
         repeat(100) {
             store.query("token50")
@@ -339,11 +298,9 @@ class PositionalIndexStoreTest {
         }
         val queryTime = System.currentTimeMillis() - startQuery
 
-        // Verify correctness
         assertEquals(numFiles, store.query("token50").size)
         assertTrue(store.querySequence(listOf("token1", "token2")).isNotEmpty())
 
-        // Performance should be reasonable (adjust based on hardware)
         assertTrue(indexTime < 10000, "Indexing should complete in reasonable time")
         assertTrue(queryTime < 1000, "Queries should be fast with positional index")
     }
@@ -354,13 +311,11 @@ class PositionalIndexStoreTest {
         Files.write(file, "the quick brown fox jumps over the lazy dog".toByteArray())
 
         try {
-            // Process real file
             val tokenPositions = fileProcessor.processFileWithPositions(file)
             assertNotNull(tokenPositions)
 
             store.updateFileTokensWithPositions(file, tokenPositions!!)
-
-            // Test queries on real content
+            
             assertTrue(store.query("quick").contains(file))
             assertTrue(store.querySequence(listOf("quick", "brown")).contains(file))
             assertTrue(store.querySequence(listOf("the", "lazy", "dog")).contains(file))

@@ -96,17 +96,14 @@ class TokenizerTest {
     fun `custom stateful tokenizer - word boundary preservation`() {
         val tokenizer = WordBoundaryPreservingTokenizer()
         val session = tokenizer.createSession()
-
         val tokens = mutableSetOf<String>()
-
-        // Process text chunks that might split words
+        
         tokens.addAll(session.processText("This is a hyphen-"))
         tokens.addAll(session.processText("ated word example."))
         tokens.addAll(session.processText("Another brok"))
         tokens.addAll(session.processText("en word here."))
         tokens.addAll(session.finalize())
 
-        // Should preserve word boundaries correctly
         assertTrue(tokens.contains("hyphenated"), "Should combine hyphenated words")
         assertTrue(tokens.contains("broken"), "Should combine broken words")
         assertTrue(tokens.contains("this"), "Should include normal words")

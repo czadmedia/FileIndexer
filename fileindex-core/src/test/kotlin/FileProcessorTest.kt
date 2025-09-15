@@ -8,7 +8,6 @@ class FileProcessorTest {
 
     @Test
     fun `line-by-line processing produces same results as whole-file processing`() {
-        // Create a test file with multiple lines
         val testContent = """
             Hello world! This is line one.
             Second line with different WORDS and numbers123.
@@ -16,34 +15,26 @@ class FileProcessorTest {
             
             Empty line above, and more content here.
         """.trimIndent()
-
         val tempFile = Files.createTempFile("line_test", ".txt")
         Files.write(tempFile, testContent.toByteArray())
 
         try {
             val tokenizer = SimpleWordTokenizer()
             val processor = TextFileProcessor(tokenizer)
-
-            // Process with our line-by-line implementation
             val lineByLineTokens = processor.processFile(tempFile)
             assertNotNull(lineByLineTokens, "Should successfully process file")
 
-            // Compare with what would happen if we tokenized the whole content at once
             val wholeFileTokens = tokenizer.tokens(testContent).toSet()
 
-            // Results should be identical
             assertEquals(
                 wholeFileTokens, lineByLineTokens,
                 "Line-by-line processing should produce same tokens as whole-file processing"
             )
-
-            // Verify we got expected content (some sample tokens)
             assertTrue(lineByLineTokens!!.contains("hello"), "Should contain 'hello'")
             assertTrue(lineByLineTokens.contains("world"), "Should contain 'world'")
             assertTrue(lineByLineTokens.contains("numbers123"), "Should contain 'numbers123'")
             assertTrue(lineByLineTokens.contains("special"), "Should contain 'special'")
             assertTrue(lineByLineTokens.contains("characters"), "Should contain 'characters'")
-
         } finally {
             Files.deleteIfExists(tempFile)
         }
@@ -83,13 +74,10 @@ class FileProcessorTest {
 
             assertNotNull(tokens, "Should handle larger file")
             assertTrue(tokens!!.isNotEmpty(), "Should extract tokens from large file")
-
-            // Should contain tokens from different parts of the file
             assertTrue(tokens.contains("line"), "Should contain 'line'")
             assertTrue(tokens.contains("content"), "Should contain 'content'")
             assertTrue(tokens.contains("words0"), "Should contain 'words0'")
             assertTrue(tokens.contains("words999"), "Should contain 'words999'")
-
         } finally {
             Files.deleteIfExists(tempFile)
         }
