@@ -6,6 +6,7 @@ import org.junit.jupiter.api.fail
 import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.StandardOpenOption
+import java.util.concurrent.TimeUnit
 
 class FileIndexServiceTest {
 
@@ -123,9 +124,10 @@ class FileIndexServiceTest {
             assertTrue(service.query(alpha).get().isEmpty())
 
             write(path, alpha)
+            Thread.sleep(50) // Allow file system sync
 
             awaitTrue(watcherTimeout) {
-                service.query(alpha).get().contains(path)
+                service.query(alpha).get(1, TimeUnit.SECONDS).contains(path)
             }
         }
     }
