@@ -1,6 +1,5 @@
-plugins {
-    kotlin("jvm")
-}
+// Root project configuration
+// The actual build logic is in the subprojects
 
 allprojects {
     repositories {
