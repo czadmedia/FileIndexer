@@ -1,6 +1,6 @@
 # FileIndexer
 
-A high-performance file indexing and search library for Kotlin/Java applications.
+A high-performance file indexing and search library for Kotlin applications.
 
 ## Features
 
