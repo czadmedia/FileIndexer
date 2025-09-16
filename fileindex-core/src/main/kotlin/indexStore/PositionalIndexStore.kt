@@ -20,12 +20,12 @@ import java.util.concurrent.ConcurrentHashMap
  * - Advanced search features (proximity, ordering, etc.)
  *
  * Trade-offs:
- * - Higher memory usage (4-10x compared to simple index)
+ * - Higher memory usage
  * - Slower indexing due to position tracking
  * - More complex data structures
  */
 class PositionalIndexStore : IndexStore, PositionalIndexOperations {
-    
+
     private val positionalInverted: ConcurrentHashMap<String, ConcurrentHashMap<Path, List<Int>>> = ConcurrentHashMap()
     private val positionalFileTokens: ConcurrentHashMap<Path, Map<String, List<Int>>> = ConcurrentHashMap()
 

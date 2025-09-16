@@ -19,7 +19,7 @@ A high-performance file indexing and search library for Kotlin/Java applications
 
 ```kotlin
 dependencies {
-    implementation("org.example:fileindex-core:0.1.3")
+    implementation("com.github.czadmedia:FileIndexer:v0.1.3")
 }
 ```
 
@@ -27,7 +27,7 @@ dependencies {
 
 ```groovy
 dependencies {
-    implementation 'org.example:fileindex-core:0.1.3'
+    implementation 'com.github.czadmedia:FileIndexer:v0.1.3'
 }
 ```
 
@@ -38,7 +38,7 @@ dependencies {
 <dependency>
     <groupId>org.example</groupId>
     <artifactId>fileindex-core</artifactId>
-    <version>0.1.0</version>
+    <version>0.1.3</version>
 </dependency>
 ```
 
