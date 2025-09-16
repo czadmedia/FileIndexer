@@ -5,6 +5,7 @@ import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.CompletableFuture
+import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicReference
 import java.util.logging.Logger
 import java.util.logging.Level
@@ -71,9 +72,10 @@ class ThreadPoolTaskExecutor(
         }
 
         val batchFuture = synchronized(batchLock) {
+            val alreadyInBatch = pendingFiles.contains(path)
             pendingFiles.add(path)
-            if (pendingFiles.size == 1) {
-                // First file in new batch - create new completion future
+
+            if (!alreadyInBatch && pendingFiles.size == 1) {
                 val newBatch = CompletableFuture<Void>()
                 currentBatch.set(newBatch)
                 newBatch
@@ -115,7 +117,24 @@ class ThreadPoolTaskExecutor(
     }
 
     override fun shutdown() {
-        pool.shutdownNow()
+        if (pool.isShutdown) return
+
+        try {
+            pool.shutdown()
+
+            if (pool.awaitTermination(2, TimeUnit.SECONDS)) {
+                return
+            }
+
+            pool.shutdownNow()
+
+            if (pool.awaitTermination(2, TimeUnit.SECONDS)) {
+                return
+            }
+        } catch (e: InterruptedException) {
+            logger.log(Level.WARNING, "Thread pool shutdown interrupted, forcing immediate termination", e)
+            Thread.currentThread().interrupt()
+        }
     }
 
     override fun close() {
