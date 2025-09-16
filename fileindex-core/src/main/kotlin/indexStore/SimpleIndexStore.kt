@@ -151,15 +151,15 @@ private class SequenceVerifier(private val targetSequence: List<String>) {
 
     fun processTokens(tokens: Sequence<String>): Boolean {
         for (token in tokens) {
-            when {
-                token == targetSequence[matchPosition] -> {
+            when (token) {
+                targetSequence[matchPosition] -> {
                     matchPosition++
                     if (matchPosition == targetSequence.size) {
                         return true
                     }
                 }
 
-                token == targetSequence[0] -> {
+                targetSequence[0] -> {
                     matchPosition = 1
                 }
 
